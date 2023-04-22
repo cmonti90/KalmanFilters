@@ -1,0 +1,5 @@
+build/*
+.vscode/*
+*.code-workspace
+*.orig
+__pycache__/
