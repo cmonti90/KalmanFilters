@@ -2,7 +2,7 @@ import distribution as dist
 import numpy as np
 
 class KalmanFilter:
-    def __init__(self, A, B, H, P, X, R = dist.normal_distribution(0,1), Q = dist.normal_distribution(0, 1)):
+    def __init__(self, A, B, H, P, X, R, Q):
         self.A = A
         self.B = B
         self.H = H
