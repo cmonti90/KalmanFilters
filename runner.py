@@ -15,7 +15,7 @@ if __name__ == "__main__":
     l2 = 1.0
 
     # Initial double pendulum states
-    x1_0    = 30.0 * math.pi / 180.0
+    x1_0    = 0.0 * math.pi / 180.0
     x1dot_0 = 0.0
     x2_0    = 0.0
     x2dot_0 = 0.0
@@ -28,8 +28,8 @@ if __name__ == "__main__":
     dubPen = dp.DoublePendulum(l1, m1, l2, m2, x1_0, x1dot_0, x2_0, x2dot_0)
     dubPen.compute(duration, dt)
 
-    useEkf = 1
-    useUkf = 0
+    useEkf = 0
+    useUkf = 1
 
 
     # Define the initial covariance
@@ -51,19 +51,10 @@ if __name__ == "__main__":
     P = np.array([[sig_theta1_theta1, sig_theta1dot_theta1, sig_theta1_theta2, sig_theta2dot_theta1], [sig_theta1dot_theta1, sig_theta1dot_theta1dot, sig_theta1dot_theta2, sig_theta1dot_theta2dot], [sig_theta1_theta2, sig_theta1dot_theta2, sig_theta2_theta2, sig_theta2dot_theta2], [sig_theta2dot_theta1, sig_theta1dot_theta2dot, sig_theta2dot_theta2, sig_theta2dot_theta2dot]])
     
     # Define process noise
-    Q = np.array([[0.0001, 0.0002, 0.0002, 0.0002], [0.0002, 0.0001, 0.0002, 0.0002], [0.0002, 0.0002, 0.0001, 0.0002], [0.0002, 0.0002, 0.0002, 0.0001]])
+    Q = np.array([[0.0001, 0.00002, 0.00002, 0.0002], [0.00002, 0.0001, 0.00002, 0.00002], [0.00002, 0.00002, 0.0001, 0.00002], [0.00002, 0.00002, 0.00002, 0.0001]])
 
     # Define measurement noise
     R = np.array([[1e-6, 0.0], [0.0, 1e-6]])
-
-    # Obervation matrix for encoder 1
-    H1 = np.array([1.0, 0.0, 0.0, 0.0])
-
-    # Obervation matrix for encoder 2
-    H2 = np.array([0.0, 0.0, 1.0, 0.0])
-
-    # Obervation matrix for encoder 1 and 2
-    H = np.array([H1, H2])
 
     # Define the initial state vector
     X = np.array([x1_0, x1dot_0, x2_0, x2dot_0])
@@ -80,6 +71,8 @@ if __name__ == "__main__":
     ekf_error_theta2 = [0.0]
     ukf_error_theta1 = [0.0]
     ukf_error_theta2 = [0.0]
+    
+    sensor = 1
 
     for i in range(len(dubPen.t) - offset):
 
@@ -88,8 +81,8 @@ if __name__ == "__main__":
 
         # Define the measurement vector
 
-        theta1_meas = dubPen.theta1_history[j] + np.random.normal(0.0, 1e-6)
-        theta2_meas = dubPen.theta2_history[j] + np.random.normal(0.0, 1e-6)
+        theta1_meas = dubPen.theta1_history[j] + np.random.normal(0.0, 1e-4)
+        theta2_meas = dubPen.theta2_history[j] + np.random.normal(0.0, 1e-4)
         Z = np.array([dubPen.theta1_history[j], dubPen.theta2_history[j]])
         # Z = np.array([theta1_meas, theta2_meas])
 
@@ -98,28 +91,31 @@ if __name__ == "__main__":
         t = dubPen.t[j]
 
         if useEkf:
-            if j % 3 == 0:
-                 Z = Z[0]
-                 sensor = 1
-            elif j % 3 == 1:
-                Z = Z[1]
-                sensor = 2
-            else:
-                sensor = 0
-            
-            # Update the Kalman filter
-            EKF.newData(Z, t, sensor)
 
-            ekf_error_theta1.append(EKF.theta1Hist[-1] - dubPen.theta1_history[j])
-            ekf_error_theta2.append(EKF.theta2Hist[-1] - dubPen.theta2_history[j])
+            # sensor = 1
+
+            if j % 25 == 0:
+
+                if sensor == 2:
+                    Z = Z[0]
+                    sensor = 1
+                elif sensor == 1:
+                    Z = Z[1]
+                    sensor = 2
+                
+                # Update the Kalman filter
+                EKF.newData(Z, t, sensor)
+
+                ekf_error_theta1.append((EKF.theta1Hist[-1] - dubPen.theta1_history[j]) * 180.0 / np.pi )
+                ekf_error_theta2.append((EKF.theta2Hist[-1] - dubPen.theta2_history[j]) * 180.0 / np.pi )
 
         if useUkf:
             # Update the Kalman filter
             # try:
                 UKF.newData(Z, t)
 
-                ukf_error_theta1.append(UKF.theta1Hist[-1] - dubPen.theta1_history[j])
-                ukf_error_theta2.append(UKF.theta2Hist[-1] - dubPen.theta2_history[j])
+                ukf_error_theta1.append((UKF.theta1Hist[-1] - dubPen.theta1_history[j]) * 180.0 / np.pi )
+                ukf_error_theta2.append((UKF.theta2Hist[-1] - dubPen.theta2_history[j]) * 180.0 / np.pi )
 
             # finally:
             #         print(f"Final EKF error theta1: {ekf_error_theta1[-1]}")
@@ -150,8 +146,8 @@ if __name__ == "__main__":
     # plt.show()
 
     if useEkf:
-        plt.plot(timehist, ekf_error_theta1, label="theta1")
-        plt.plot(timehist, ekf_error_theta2, label="theta2")
+        plt.plot(EKF.timeHist, ekf_error_theta1, label="theta1")
+        plt.plot(EKF.timeHist, ekf_error_theta2, label="theta2")
 
         plt.legend()
         plt.title("Double Pendulum Time Series: EKF")
@@ -160,8 +156,8 @@ if __name__ == "__main__":
         plt.show()
 
     if useUkf:
-        plt.plot(timehist, ukf_error_theta1, label="theta1")
-        plt.plot(timehist, ukf_error_theta2, label="theta2")
+        plt.plot(UKF.timeHist, ukf_error_theta1, label="theta1")
+        plt.plot(UKF.timeHist, ukf_error_theta2, label="theta2")
 
         plt.legend()
         plt.title("Double Pendulum Time Series: UKF")

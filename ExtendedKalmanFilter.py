@@ -15,7 +15,7 @@ class ExtendedKalmanFilter:
         self.timeUpdated = 0.0
         self.g = g
 
-        self.timeHist = [0.0]
+        self.timeHist   = [0.0]
         self.theta1Hist = [X[0]]
         self.theta2Hist = [X[2]]
 
