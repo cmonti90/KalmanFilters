@@ -8,10 +8,12 @@ class ExtendedKalmanFilter:
         self.m2 = m2
         self.L1 = L1
         self.L2 = L2
-        self.Q = Q
-        self.R = R
-        self.P = P
-        self.X = X
+
+        self.Q = Q.copy()
+        self.R = R.copy()
+        self.P = P.copy()
+        self.X = X.copy()
+        
         self.timeUpdated = 0.0
         self.g = g
 

@@ -30,13 +30,13 @@ if __name__ == "__main__":
     dubPen = dp.DoublePendulum(l1, m1, l2, m2, x1_0, x1dot_0, x2_0, x2dot_0, 0.0, 0.0, g)
     dubPen.compute(duration, dt)
 
-    useEkf = 0
+    useEkf = 1
     useUkf = 1
 
-    measRate = 1
+    measRate = 10
 
     sensorNoise = 1e-3
-    useTruth = 1
+    useTruth = 0
 
     # Define the initial covariance
     sig_theta1dot_theta1dot = 0.0001
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     # Instantiate the Kalman filters
     EKF = ekf.ExtendedKalmanFilter(m1, m2, l1, l2, P, X, R, Q, g)
-    UKF = ukf.UnscentedKalmanFilter(m1, m2, l1, l2, P, X, R, Q, g)
+    UKF = ukf.UnscentedKalmanFilter(m1, m2, l1, l2, P, X, R, Q, g, alpha = 1e-3, beta = 2, kappa = 0)
 
     ## Extended Kalman Filter
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     ukf_error_theta1 = [0.0]
     ukf_error_theta2 = [0.0]
     
-    sensor = 0
+    sensor = 1
 
     for i in range(1, len(dubPen.t)):
 
