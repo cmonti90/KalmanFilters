@@ -38,7 +38,7 @@ class UnscentedKalmanFilter:
         self.theta2Hist = [self.X[2,0].copy()]
 
 
-    def _constructSigmaPoints(self) -> np.ndarray:
+    def _constructSigmaPoints(self):
 
         Xsig = np.zeros((self.N, 2 * self.N + 1))
 
@@ -56,12 +56,12 @@ class UnscentedKalmanFilter:
         return Xsig
 
 
-    def _propagateSigmaPoints(self, Xsig, dt) -> np.ndarray:
+    def _propagateSigmaPoints(self, Xsig, dt):
         
         return np.transpose(np.array([self._nonlinearFunction(Xsig[:,i], dt) for i in range(2 * self.N + 1)]))
 
 
-    def _nonlinearFunction(self, stateVec, dt) -> np.ndarray:
+    def _nonlinearFunction(self, stateVec, dt):
         theta1dotdot, theta2dotdot = dp.thetadotdot(self.m1, self.l1, self.m2, self.l2, stateVec[0], stateVec[1], stateVec[2], stateVec[3], self.g)
 
         theta1      = stateVec[0] + dt * stateVec[1] + 0.5 * (dt ** 2) * theta1dotdot
@@ -72,7 +72,7 @@ class UnscentedKalmanFilter:
         return np.array([theta1, theta1dot, theta2, theta2dot])
 
 
-    def _predictMean(self, Xsig_prop) -> np.ndarray:
+    def _predictMean(self, Xsig_prop):
 
         Xpred = self.weights_mean[0] * Xsig_prop[:, (0,)]
 
@@ -85,7 +85,7 @@ class UnscentedKalmanFilter:
         return Xpred
 
 
-    def _predictCovariance(self, Xsig_prop, Xpred) -> np.ndarray:
+    def _predictCovariance(self, Xsig_prop, Xpred):
         Ppred = self.Q.copy()
 
         Ppred += self.weights_cov[0] * np.outer(Xsig_prop[:, (0,)] - Xpred, Xsig_prop[:, (0,)] - Xpred)
@@ -100,7 +100,7 @@ class UnscentedKalmanFilter:
         return Ppred
 
 
-    def _predictedMeasurementCovariance(self, Zsig_prop, Zpred) -> np.ndarray:
+    def _predictedMeasurementCovariance(self, Zsig_prop, Zpred):
 
         if self.sensorIdx == 0:
             S = self.R.copy()
@@ -127,7 +127,7 @@ class UnscentedKalmanFilter:
         return S
 
 
-    def _crossCorrelation(self, Xsig_prop, Xpred, Zsig_prop, Zpred) -> np.ndarray:
+    def _crossCorrelation(self, Xsig_prop, Xpred, Zsig_prop, Zpred):
 
         T = self.weights_cov[0] * np.outer(Xsig_prop[:, (0,)] - Xpred, Zsig_prop[:, (0,)] - Zpred)
 
@@ -140,14 +140,14 @@ class UnscentedKalmanFilter:
         return T
 
 
-    def _constructSigmaPointsInMeasurementSpace(self, Xsig_prop) -> np.ndarray:
+    def _constructSigmaPointsInMeasurementSpace(self, Xsig_prop):
             
         Zsig_prop = Xsig_prop[self.measStateIdx, :].copy()
 
         return Zsig_prop
 
 
-    def _predictionInMeasurementSpace(self, Zsig_prop) -> np.ndarray:
+    def _predictionInMeasurementSpace(self, Zsig_prop):
 
         Zpred = self.weights_mean[0] * Zsig_prop[:, (0,)]
 
@@ -158,7 +158,7 @@ class UnscentedKalmanFilter:
         return Zpred
 
 
-    def predict(self, t) -> None:
+    def predict(self, t):
 
         Xsig = self._constructSigmaPoints()
         Xsig_prop = self._propagateSigmaPoints(Xsig, t - self.timeUpdated)
@@ -168,7 +168,7 @@ class UnscentedKalmanFilter:
         return Xpred, Ppred, Xsig_prop
 
 
-    def update(self, t, Y, sensorIdx) -> None:
+    def update(self, t, Y, sensorIdx):
 
         self._determineMeasurementIndexing(sensorIdx)
 
@@ -191,7 +191,7 @@ class UnscentedKalmanFilter:
         self.timeUpdated = t
 
 
-    def newData(self, z, t, sensorIdx) -> None:
+    def newData(self, z, t, sensorIdx):
 
         self.update(t, z, sensorIdx)
 
@@ -202,7 +202,7 @@ class UnscentedKalmanFilter:
         self.theta2Hist.append(self.X[2,0])
     
 
-    def _determineMeasurementIndexing(self, sensorIdx) -> None:
+    def _determineMeasurementIndexing(self, sensorIdx):
 
         self.sensorIdx = sensorIdx
 

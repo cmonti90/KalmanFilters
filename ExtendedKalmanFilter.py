@@ -22,7 +22,7 @@ class ExtendedKalmanFilter:
         self.theta2Hist = [self.X[2,0].copy()]
 
 
-    def _f11(self, dt) -> float:
+    def _f11(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -36,13 +36,13 @@ class ExtendedKalmanFilter:
         return 1.0 + ((dt ** 2)/ 2.0) * ( term1 * term2 - term3 * term4) / denom
     
 
-    def _f12(self, dt) -> float:
+    def _f12(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
 
         return dt + (0.5 * (dt ** 2)) * (-np.sin(dTheta) * (2.0 * self.m2 * self.L1 * self.X[1,0] * np.cos(dTheta))) / (self.L1 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
     
 
-    def _f13(self, dt) -> float:
+    def _f13(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -56,13 +56,13 @@ class ExtendedKalmanFilter:
         return (0.5 * (dt ** 2)) * ( term1 * term2 - term3 * term4) / denom
 
     
-    def _f14(self, dt) -> float:
+    def _f14(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
 
         return (0.5 * (dt ** 2)) * (-2.0 * self.m2 * self.L2 * self.X[3,0] * np.sin(dTheta)) / (self.L1 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
     
 
-    def _f21(self, dt) -> float:
+    def _f21(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -76,13 +76,13 @@ class ExtendedKalmanFilter:
         return dt * (term1 * term2 - term3 * term4) / denom
     
 
-    def _f22(self, dt) -> float:
+    def _f22(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
 
         return 1.0 + dt * (-2.0 * self.m2 * self.L1 * self.X[0,0] * np.sin(dTheta)) / (self.L1 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
     
 
-    def _f23(self, dt) -> float:
+    def _f23(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -96,13 +96,13 @@ class ExtendedKalmanFilter:
         return dt * (term1 * term2 - term3 * term4) / denom
     
 
-    def _f24(self, dt) -> float:
+    def _f24(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
 
         return -dt * (2.0 * self.m2 * self.L2 * self.X[3,0] * np.sin(dTheta)) / (self.L1 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
     
 
-    def _f31(self, dt) -> float:
+    def _f31(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -116,14 +116,14 @@ class ExtendedKalmanFilter:
         return ( 0.5 * dt ** 2 ) * (term1 * term2 - term3 * term4) / denom
     
 
-    def _f32(self, dt) -> float:
+    def _f32(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
         return (dt ** 2) * (np.sin(dTheta) * M * self.L1 * self.X[1,0]) / (self.L2 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
     
 
-    def _f33(self, dt) -> float:
+    def _f33(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -137,13 +137,13 @@ class ExtendedKalmanFilter:
         return 1.0 + ( 0.5 * (dt ** 2) ) * (term1 * term2 - term3 * term4) / denom
     
 
-    def _f34(self, dt) -> float:
+    def _f34(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
 
         return dt + 0.5 * (dt ** 2) * (2.0 * np.sin(dTheta) * self.m2 * self.L2 * self.X[3,0] * np.cos(dTheta)) / (self.L2 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
     
 
-    def _f41(self, dt) -> float:
+    def _f41(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -157,14 +157,14 @@ class ExtendedKalmanFilter:
         return dt * (term1 * term2 - term3 * term4) / denom
     
 
-    def _f42(self, dt) -> float:
+    def _f42(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
         return dt * (2.0 * M * self.L1 * np.sin(dTheta)) / (self.L2 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
     
 
-    def _f43(self, dt) -> float:
+    def _f43(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
         M = self.m1 + self.m2
 
@@ -178,20 +178,20 @@ class ExtendedKalmanFilter:
         return dt * (term1 * term2 - term3 * term4) / denom
     
 
-    def _f44(self, dt) -> float:
+    def _f44(self, dt):
         dTheta = self.X[0,0] - self.X[2,0]
 
         return 1.0 + dt * (2.0 * self.m2 * self.L2 * self.X[3,0] * np.sin(dTheta) * np.cos(dTheta)) / (self.L2 * (self.m1 + self.m2 * (np.sin(dTheta) ** 2)))
 
 
-    def _constructF(self, dt) -> np.ndarray:
+    def _constructF(self, dt):
         return np.array([[self._f11(dt), self._f12(dt), self._f13(dt), self._f14(dt)],
                          [self._f21(dt), self._f22(dt), self._f23(dt), self._f24(dt)],
                          [self._f31(dt), self._f32(dt), self._f33(dt), self._f34(dt)],
                          [self._f41(dt), self._f42(dt), self._f43(dt), self._f44(dt)]])
 
 
-    def _constructPredStateVec(self, dt) -> np.ndarray:
+    def _constructPredStateVec(self, dt):
 
         theta1dotdot, theta2dotdot = dp.thetadotdot(self.m1, self.L1, self.m2, self.L2, self.X[0,0], self.X[1,0], self.X[2,0], self.X[3,0], self.g)
 
@@ -204,7 +204,7 @@ class ExtendedKalmanFilter:
         return np.array([[theta1], [theta1dot], [theta2], [theta2dot]])
 
 
-    def _constructH(self, sensorIdx) -> np.ndarray:
+    def _constructH(self, sensorIdx):
         if sensorIdx == 1:
             H = np.array([[1.0, 0.0, 0.0, 0.0]])
             R = self.R[0][0]
@@ -219,7 +219,7 @@ class ExtendedKalmanFilter:
         return H, R
 
 
-    def predict(self, t) -> np.ndarray:
+    def predict(self, t):
         dt = t - self.timeUpdated
         Xpred = self._constructPredStateVec(dt)
 
@@ -230,7 +230,7 @@ class ExtendedKalmanFilter:
         return Xpred, Ppred
 
 
-    def update(self, Z, t, sensorIdx) -> None:
+    def update(self, Z, t, sensorIdx):
 
         Xpred, Ppred = self.predict(t)
 
@@ -247,7 +247,7 @@ class ExtendedKalmanFilter:
         self.timeUpdated = t
 
 
-    def newData(self, Z, t, sensorIdx) -> None:
+    def newData(self, Z, t, sensorIdx):
 
         self.update(Z, t, sensorIdx)
 

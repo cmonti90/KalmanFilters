@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def thetadotdot(mass1, length1, mass2, length2, x1, x1dot, x2, x2dot, g = 9.81 ) -> float:
+def thetadotdot(mass1, length1, mass2, length2, x1, x1dot, x2, x2dot, g = 9.81 ):
     
     # Common
     dTheta = x1 - x2
@@ -28,7 +28,7 @@ def thetadotdot(mass1, length1, mass2, length2, x1, x1dot, x2, x2dot, g = 9.81 )
     return x1dotdot, x2dotdot
 
 
-def wrapNegPiToPi(angle: np.float64) -> np.float64:
+def wrapNegPiToPi(angle):
 
     ratio = np.trunc(angle / (2.0 * np.pi))
 
@@ -43,7 +43,7 @@ def wrapNegPiToPi(angle: np.float64) -> np.float64:
     return angle
 
 
-def wrapZeroToTwoPi(angle: np.float64) -> np.float64:
+def wrapZeroToTwoPi(angle):
 
     ratio = np.trunc(angle / (2.0 * np.pi))
 
@@ -56,7 +56,7 @@ def wrapZeroToTwoPi(angle: np.float64) -> np.float64:
 
 
 class DoublePendulum:
-    def __init__(self, inp_length1, inp_mass1, inp_length2, inp_mass2, inp_x1_0 = 0, inp_x1dot_0 = 0, inp_x2_0 = 0, inp_x2dot_0 = 0, inp_Mfric1 = 0, inp_Mfric2 = 0, inp_g = 9.81) -> None:
+    def __init__(self, inp_length1, inp_mass1, inp_length2, inp_mass2, inp_x1_0 = 0, inp_x1dot_0 = 0, inp_x2_0 = 0, inp_x2dot_0 = 0, inp_Mfric1 = 0, inp_Mfric2 = 0, inp_g = 9.81):
 
         # System Parameters
         self.length1 = inp_length1
