@@ -2,8 +2,35 @@
 
 import numpy as np
 
+
+def thetadotdot(mass1, length1, mass2, length2, x1, x1dot, x2, x2dot, g = 9.81 ) -> float:
+    
+    # Common
+    dTheta = x1 - x2
+    M = mass1 + mass2
+    denomFactor = mass1 + mass2 * (np.sin(dTheta) ** 2)
+
+
+    # x1dotdot
+    num = -np.sin(dTheta) * ( mass2 * length1 * (x1dot ** 2) * np.cos(dTheta) + mass2 * length2 * (x2dot ** 2) ) - g * ( M * np.sin(x1) - mass2 * np.sin(x2) * np.cos(dTheta) )
+    denom = length1 * denomFactor
+
+    x1dotdot = num / denom
+
+    # x2dotdot
+    num = np.sin(dTheta) * ( M * length1 * (x1dot ** 2) + mass2 * length2 * (x2dot ** 2) * np.cos(dTheta)) + M * g * (np.sin(x1) * np.cos(dTheta) - np.sin(x2) )
+    denom = length2 * denomFactor
+
+    x2dotdot = num / denom
+
+
+    # Return
+    return x1dotdot, x2dotdot
+
+
+
 class DoublePendulum:
-    def __init__(self, inp_length1, inp_mass1, inp_length2, inp_mass2, inp_x1_0 = 0, inp_x1dot_0 = 0, inp_x2_0 = 0, inp_x2dot_0 = 0, inp_Mfric1 = 0, inp_Mfric2 = 0) -> None:
+    def __init__(self, inp_length1, inp_mass1, inp_length2, inp_mass2, inp_x1_0 = 0, inp_x1dot_0 = 0, inp_x2_0 = 0, inp_x2dot_0 = 0, inp_Mfric1 = 0, inp_Mfric2 = 0, inp_g = 9.81) -> None:
 
         # System Parameters
         self.length1 = inp_length1
@@ -12,6 +39,7 @@ class DoublePendulum:
         self.mass2   = inp_mass2
         self.Mfric1  = inp_Mfric1
         self.Mfric2  = inp_Mfric2
+        self.g       = inp_g
 
         # Time
         self.t = [0.0]
@@ -21,65 +49,45 @@ class DoublePendulum:
         self.X_history = list(self.X)
         self.theta1_history = [self.X[0]]
         self.theta2_history = [self.X[2]]
-
     
-    def _theta1Ode(self, x1, x1dot, x2, x2dot) -> float:
-        # Constants
-        dTheta = x1 - x2
-        M = self.mass1 + self.mass2
-        g = 9.81
 
-        # Derivatives
-        x1dotdot = ( 1.0 / (self.length1 * (self.mass1 + self.mass2 * (np.sin(dTheta) ** 2))) ) * ( -np.sin(dTheta) * ( self.mass2 * self.length1 * (x1dot ** 2) * np.cos(dTheta) + self.mass2 * self.length2 * (x2dot ** 2) ) - g * (M * np.sin(x1) - self.mass2 * np.sin(x2) * np.cos(dTheta) ) )
-
-        # Return
-        return x1dotdot
-
-    
-    def _theta2Ode(self, x1, x1dot, x2, x2dot) -> float:
-        # Constants
-        dTheta = x1 - x2
-        M = self.mass1 + self.mass2
-        g = 9.81
-
-        # Derivatives
-        x2dotdot = ( 1.0 / (self.length2 * (self.mass1 + self.mass2 * (np.sin(dTheta) ** 2))) ) * ( np.sin(dTheta) * ( M * self.length1 * (x1dot ** 2) + self.mass2 * self.length2 * (x2dot ** 2) * np.cos(dTheta)) + M * g * (np.sin(x1) * np.cos(dTheta) - np.sin(x2) ) )
-
-        # Return
-        return x2dotdot
-    
     def _RungeKutta4thOrder(self, dt) -> None:
         
-        dx1dot_1 = dt * self._theta1Ode(self.X[0], self.X[1], self.X[2], self.X[3])
-        dx2dot_1 = dt * self._theta2Ode(self.X[0], self.X[1], self.X[2], self.X[3])
-        dx1_1    = dt * self.X[1]
-        dx2_1    = dt * self.X[3]
+        x1dotdot, x2dotdot = thetadotdot(self.mass1, self.length1, self.mass2, self.length2, self.X[0], self.X[1], self.X[2], self.X[3], self.g)
+        k1_x1dot = dt * x1dotdot
+        k1_x2dot = dt * x2dotdot
+        k1_x1    = dt * self.X[1]
+        k1_x2    = dt * self.X[3]
 
-        dx1dot_2 = dt * self._theta1Ode(self.X[0] + dx1_1 / 2.0, self.X[1] + dx1dot_1 / 2.0, self.X[2] + dx2_1 / 2.0, self.X[3] + dx2dot_1 / 2.0)
-        dx2dot_2 = dt * self._theta2Ode(self.X[0] + dx1_1 / 2.0, self.X[1] + dx1dot_1 / 2.0, self.X[2] + dx2_1 / 2.0, self.X[3] + dx2dot_1 / 2.0)
-        dx1_2    = dt * (self.X[1] + dx1dot_1 / 2.0)
-        dx2_2    = dt * (self.X[3] + dx2dot_1 / 2.0)
+        x1dotdot, x2dotdot = thetadotdot(self.mass1, self.length1, self.mass2, self.length2, self.X[0] + k1_x1 / 2.0, self.X[1] + k1_x1dot / 2.0, self.X[2] + k1_x2 / 2.0, self.X[3] + k1_x2dot / 2.0, self.g)
+        k2_x1dot = dt * x1dotdot
+        k2_x2dot = dt * x2dotdot
+        k2_x1    = dt * (self.X[1] + k1_x1dot / 2.0)
+        k2_x2    = dt * (self.X[3] + k1_x2dot / 2.0)
 
-        dx1dot_3 = dt * self._theta1Ode(self.X[0] + dx1_2 / 2.0, self.X[1] + dx1dot_2 / 2.0, self.X[2] + dx2_2 / 2.0, self.X[3] + dx2dot_2 / 2.0)
-        dx2dot_3 = dt * self._theta2Ode(self.X[0] + dx1_2 / 2.0, self.X[1] + dx1dot_2 / 2.0, self.X[2] + dx2_2 / 2.0, self.X[3] + dx2dot_2 / 2.0)
-        dx1_3    = dt * (self.X[1] + dx1dot_2 / 2.0)
-        dx2_3    = dt * (self.X[3] + dx2dot_2 / 2.0)
+        x1dotdot, x2dotdot = thetadotdot(self.mass1, self.length1, self.mass2, self.length2, self.X[0] + k2_x1 / 2.0, self.X[1] + k2_x1dot / 2.0, self.X[2] + k2_x2 / 2.0, self.X[3] + k2_x2dot / 2.0, self.g)
+        k3_x1dot = dt * x1dotdot
+        k3_x2dot = dt * x2dotdot
+        k3_x1    = dt * (self.X[1] + k2_x1dot / 2.0)
+        k3_x2    = dt * (self.X[3] + k2_x2dot / 2.0)
 
-        dx1dot_4 = dt * self._theta1Ode(self.X[0] + dx1_3, self.X[1] + dx1dot_3, self.X[2] + dx2_3, self.X[3] + dx2dot_3)
-        dx2dot_4 = dt * self._theta2Ode(self.X[0] + dx1_3, self.X[1] + dx1dot_3, self.X[2] + dx2_3, self.X[3] + dx2dot_3)
-        dx1_4    = dt * (self.X[1] + dx1dot_3)
-        dx2_4    = dt * (self.X[3] + dx2dot_3)
+        x1dotdot, x2dotdot = thetadotdot(self.mass1, self.length1, self.mass2, self.length2, self.X[0] + k3_x1, self.X[1] + k3_x1dot, self.X[2] + k3_x2, self.X[3] + k3_x2dot, self.g)
+        k4_x1dot = dt * x1dotdot
+        k4_x2dot = dt * x2dotdot
+        k4_x1    = dt * (self.X[1] + k3_x1dot)
+        k4_x2    = dt * (self.X[3] + k3_x2dot)
 
-        self.X[0] = self.X[0] + (dx1_1 + 2.0 * dx1_2 + 2.0 * dx1_3 + dx1_4) / 6.0
-        self.X[1] = self.X[1] + (dx1dot_1 + 2.0 * dx1dot_2 + 2.0 * dx1dot_3 + dx1dot_4) / 6.0
-        self.X[2] = self.X[2] + (dx2_1 + 2.0 * dx2_2 + 2.0 * dx2_3 + dx2_4) / 6.0
-        self.X[3] = self.X[3] + (dx2dot_1 + 2.0 * dx2dot_2 + 2.0 * dx2dot_3 + dx2dot_4) / 6.0
+        self.X[0] += ( k1_x1    + 2.0 * ( k2_x1    + k3_x1    ) + k4_x1    ) / 6.0
+        self.X[1] += ( k1_x1dot + 2.0 * ( k2_x1dot + k3_x1dot ) + k4_x1dot ) / 6.0
+        self.X[2] += ( k1_x2    + 2.0 * ( k2_x2    + k3_x2    ) + k4_x2    ) / 6.0
+        self.X[3] += ( k1_x2dot + 2.0 * ( k2_x2dot + k3_x2dot ) + k4_x2dot ) / 6.0
 
         self._checkAngleWrapping()
 
+
     def _checkAngleWrapping(self) -> None:
 
-        ratio = np.floor(self.X[0] / (2.0 * np.pi))
+        ratio = np.round(self.X[0] / (2.0 * np.pi))
 
         self.X[0] -= 2.0 * np.pi * ratio
 
@@ -89,7 +97,7 @@ class DoublePendulum:
         elif self.X[0] < -np.pi:
             self.X[0] += 2.0 * np.pi
 
-        ratio = np.floor(self.X[2] / (2.0 * np.pi))
+        ratio = np.round(self.X[2] / (2.0 * np.pi))
 
         self.X[2] -= 2.0 * np.pi * ratio
 
@@ -102,10 +110,10 @@ class DoublePendulum:
 
     def compute(self, duration, dt):
         # Time Vector
-        T = np.arange(0, duration, dt)
+        T = np.arange(dt, duration, dt)
 
         # Compute Double Pendulum
-        for i in range(len(T) - 1):
+        for t in T:
             
             self._RungeKutta4thOrder(dt)
 
@@ -113,4 +121,4 @@ class DoublePendulum:
             self.theta1_history.append(self.X[0])
             self.theta2_history.append(self.X[2])
             
-            self.t.append(T[i])
+            self.t.append(t)
