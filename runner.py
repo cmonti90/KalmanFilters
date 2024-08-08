@@ -1,8 +1,5 @@
 import numpy as np
-import scipy.special as sp
 import matplotlib.pyplot as plt
-import math
-import MackeyGlass as mg
 import DoublePendulum as dp
 import ExtendedKalmanFilter as ekf
 import UnscentedKalmanFilter as ukf
@@ -15,10 +12,10 @@ if __name__ == "__main__":
     l2 = 1.0
 
     # Initial double pendulum states
-    x1_0    = 10.0 * math.pi / 180.0
-    x1dot_0 = 0.0 * math.pi / 180.0
-    x2_0    = 0.0 * math.pi / 180.0
-    x2dot_0 = 0.0 * math.pi / 180.0
+    x1_0    = 10.0 * np.pi / 180.0
+    x1dot_0 = 0.0 * np.pi / 180.0
+    x2_0    = 0.0 * np.pi / 180.0
+    x2dot_0 = 0.0 * np.pi / 180.0
 
     g = 9.81
 
@@ -33,9 +30,9 @@ if __name__ == "__main__":
     useEkf = 1
     useUkf = 1
 
-    measRate = 10
+    measRate = 1
 
-    sensorNoise = 1e-3
+    sensorNoise = ((1e-3)/3)**2
     useTruth = 0
 
     # Define the initial covariance
@@ -64,7 +61,7 @@ if __name__ == "__main__":
     R = np.array([[sensorNoise, 0.0], [0.0, sensorNoise]])
 
     # Define the initial state vector
-    X = np.array([x1_0, x1dot_0, x2_0, x2dot_0])
+    X = np.array([[x1_0], [x1dot_0], [x2_0], [x2dot_0]])
 
     # Instantiate the Kalman filters
     EKF = ekf.ExtendedKalmanFilter(m1, m2, l1, l2, P, X, R, Q, g)
@@ -89,22 +86,22 @@ if __name__ == "__main__":
 
         # Define the measurement vector
         if useTruth:
-            Z = np.array([dubPen.theta1_history[i], dubPen.theta2_history[i]])
+            Z = np.array([[dubPen.theta1_history[i]], [dubPen.theta2_history[i]]])
 
         else:
             theta1_meas = dubPen.theta1_history[i] + np.random.normal(0.0, sensorNoise)
             theta2_meas = dubPen.theta2_history[i] + np.random.normal(0.0, sensorNoise)
-            Z = np.array([theta1_meas, theta2_meas])
+            Z = np.array([[theta1_meas], [theta2_meas]])
 
 
 
         if i % measRate == 0:
 
             if sensor == 2:
-                Z = Z[0]
+                Z = np.array([Z[0]])
                 sensor = 1
             elif sensor == 1:
-                Z = Z[1]
+                Z = np.array([Z[1]])
                 sensor = 2
 
 
@@ -127,8 +124,8 @@ if __name__ == "__main__":
 
 
     plt.figure()
-    plt.plot(dubPen.t, list(map(lambda x: x * 180 / math.pi, dubPen.theta1_history)), label="theta1")
-    plt.plot(dubPen.t, list(map(lambda x: x * 180 / math.pi, dubPen.theta2_history)), label="theta2")
+    plt.plot(dubPen.t, list(map(lambda x: x * 180 / np.pi, dubPen.theta1_history)), label="theta1")
+    plt.plot(dubPen.t, list(map(lambda x: x * 180 / np.pi, dubPen.theta2_history)), label="theta2")
 
     plt.legend()
     plt.title("Double Pendulum Time Series: Truth")
@@ -157,8 +154,8 @@ if __name__ == "__main__":
 
 
         # plt.figure()
-        # plt.plot(UKF.timeHist, list(map(lambda x: x * 180/math.pi, UKF.theta1Hist)), label="theta1")
-        # plt.plot(UKF.timeHist, list(map(lambda x: x * 180/math.pi, UKF.theta2Hist)), label="theta2")
+        # plt.plot(UKF.timeHist, list(map(lambda x: x * 180/np.pi, UKF.theta1Hist)), label="theta1")
+        # plt.plot(UKF.timeHist, list(map(lambda x: x * 180/np.pi, UKF.theta2Hist)), label="theta2")
 
         # plt.legend()
         # plt.title("Double Pendulum Time Series: UKF")

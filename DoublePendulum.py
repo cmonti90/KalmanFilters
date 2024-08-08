@@ -28,6 +28,32 @@ def thetadotdot(mass1, length1, mass2, length2, x1, x1dot, x2, x2dot, g = 9.81 )
     return x1dotdot, x2dotdot
 
 
+def wrapNegPiToPi(angle: np.float64) -> np.float64:
+
+    ratio = np.trunc(angle / (2.0 * np.pi))
+
+    angle -= 2.0 * np.pi * ratio
+
+    if angle >= np.pi:
+        angle -= 2.0 * np.pi
+
+    elif angle < -np.pi:
+        angle += 2.0 * np.pi
+
+    return angle
+
+
+def wrapZeroToTwoPi(angle: np.float64) -> np.float64:
+
+    ratio = np.trunc(angle / (2.0 * np.pi))
+
+    angle -= 2.0 * np.pi * ratio
+
+    if angle < 0:
+        angle += 2.0 * np.pi
+
+    return angle
+
 
 class DoublePendulum:
     def __init__(self, inp_length1, inp_mass1, inp_length2, inp_mass2, inp_x1_0 = 0, inp_x1dot_0 = 0, inp_x2_0 = 0, inp_x2dot_0 = 0, inp_Mfric1 = 0, inp_Mfric2 = 0, inp_g = 9.81) -> None:
@@ -77,43 +103,21 @@ class DoublePendulum:
         k4_x1    = dt * (self.X[1] + k3_x1dot)
         k4_x2    = dt * (self.X[3] + k3_x2dot)
 
+
         self.X[0] += ( k1_x1    + 2.0 * ( k2_x1    + k3_x1    ) + k4_x1    ) / 6.0
         self.X[1] += ( k1_x1dot + 2.0 * ( k2_x1dot + k3_x1dot ) + k4_x1dot ) / 6.0
         self.X[2] += ( k1_x2    + 2.0 * ( k2_x2    + k3_x2    ) + k4_x2    ) / 6.0
         self.X[3] += ( k1_x2dot + 2.0 * ( k2_x2dot + k3_x2dot ) + k4_x2dot ) / 6.0
 
-        self._checkAngleWrapping()
 
-
-    def _checkAngleWrapping(self) -> None:
-
-        ratio = np.round(self.X[0] / (2.0 * np.pi))
-
-        self.X[0] -= 2.0 * np.pi * ratio
-
-        if self.X[0] >= np.pi:
-            self.X[0] -= 2.0 * np.pi
-
-        elif self.X[0] < -np.pi:
-            self.X[0] += 2.0 * np.pi
-
-        ratio = np.round(self.X[2] / (2.0 * np.pi))
-
-        self.X[2] -= 2.0 * np.pi * ratio
-
-        if self.X[2] >= np.pi:
-            self.X[2] -= 2.0 * np.pi
-
-        elif self.X[2] < -np.pi:
-            self.X[2] += 2.0 * np.pi
+        self.X[0] = wrapNegPiToPi(self.X[0])
+        self.X[2] = wrapNegPiToPi(self.X[2])
         
 
     def compute(self, duration, dt):
-        # Time Vector
-        T = np.arange(dt, duration, dt)
 
         # Compute Double Pendulum
-        for t in T:
+        for t in np.arange(dt, duration, dt):
             
             self._RungeKutta4thOrder(dt)
 

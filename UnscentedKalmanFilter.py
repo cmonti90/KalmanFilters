@@ -30,16 +30,12 @@ class UnscentedKalmanFilter:
             self.weights_mean[i + 1] = 1.0 / (2.0 * (self.lmbda + self.N))
             self.weights_cov [i + 1] = 1.0 / (2.0 * (self.lmbda + self.N))
 
-        print(f"alpha: {alpha}, beta: {beta}, kappa: {kappa}")
-        print(f"lmbda: {self.lmbda}")
-        print(f"weights_mean: {self.weights_mean}")
-        print(f"weights_cov: {self.weights_cov}")
-
-        self.sensor = 0
+        self.sensorIdx = 0
+        self.measStateIdx = (0,2)
 
         self.timeHist   = [0.0]
-        self.theta1Hist = [self.X[0].copy()]
-        self.theta2Hist = [self.X[2].copy()]
+        self.theta1Hist = [self.X[0,0].copy()]
+        self.theta2Hist = [self.X[2,0].copy()]
 
 
     def _constructSigmaPoints(self) -> np.ndarray:
@@ -48,11 +44,13 @@ class UnscentedKalmanFilter:
 
         scaledP = np.linalg.cholesky((self.lmbda + self.N) * self.P)
 
-        Xsig[:,0] = self.X.copy()
+        Xsig[:,(0,)] = self.X.copy()
 
         for i in range(self.N):
-            Xsig[:,i + 1] = self.X + scaledP[:,i]
-            Xsig[:,i + self.N + 1] = self.X - scaledP[:,i]
+            idx1 = i + 1
+            idx2 = idx1 + self.N
+            Xsig[:,(idx1,)] = self.X + scaledP[:,(i,)]
+            Xsig[:,(idx2,)] = self.X - scaledP[:,(i,)]
 
 
         return Xsig
@@ -76,11 +74,13 @@ class UnscentedKalmanFilter:
 
     def _predictMean(self, Xsig_prop) -> np.ndarray:
 
-        Xpred = self.weights_mean[0] * Xsig_prop[:, 0]
+        Xpred = self.weights_mean[0] * Xsig_prop[:, (0,)]
 
         for i in range(self.N):
-            Xpred += self.weights_mean[i + 1] * Xsig_prop[:, i + 1]
-            Xpred += self.weights_mean[i + 1] * Xsig_prop[:, i + 1 + self.N]
+            idx1 = i + 1
+            idx2 = idx1 + self.N
+            Xpred += self.weights_mean[idx1] * Xsig_prop[:, (idx1,)]
+            Xpred += self.weights_mean[idx1] * Xsig_prop[:, (idx2,)]
 
         return Xpred
 
@@ -88,11 +88,13 @@ class UnscentedKalmanFilter:
     def _predictCovariance(self, Xsig_prop, Xpred) -> np.ndarray:
         Ppred = self.Q.copy()
 
-        Ppred += self.weights_cov[0] * np.outer(Xsig_prop[:, 0] - Xpred, Xsig_prop[:, 0] - Xpred)
+        Ppred += self.weights_cov[0] * np.outer(Xsig_prop[:, (0,)] - Xpred, Xsig_prop[:, (0,)] - Xpred)
 
         for i in range(self.N):
-            Ppred += self.weights_cov[i + 1] * np.outer(Xsig_prop[:, i + 1] - Xpred, Xsig_prop[:, i + 1] - Xpred)
-            Ppred += self.weights_cov[i + 1] * np.outer(Xsig_prop[:, i + 1 + self.N] - Xpred, Xsig_prop[:, i + 1 + self.N] - Xpred)
+            idx1 = i + 1
+            idx2 = idx1 + self.N
+            Ppred += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx1,)] - Xpred, Xsig_prop[:, (idx1,)] - Xpred)
+            Ppred += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx2,)] - Xpred, Xsig_prop[:, (idx2,)] - Xpred)
 
 
         return Ppred
@@ -100,70 +102,58 @@ class UnscentedKalmanFilter:
 
     def _predictedMeasurementCovariance(self, Zsig_prop, Zpred) -> np.ndarray:
 
-        S = self.R.copy()
+        if self.sensorIdx == 0:
+            S = self.R.copy()
 
-        if self.sensor == 0:
+        elif self.sensorIdx == 1:
+            S = self.R[0,0].copy()
 
-            S += self.weights_cov[0] * np.outer(Zsig_prop[:, 0] - Zpred, Zsig_prop[:, 0] - Zpred)
-
-            for i in range(self.N):
-                S += self.weights_cov[i + 1] * np.outer(Zsig_prop[:, i + 1] - Zpred, Zsig_prop[:, i + 1] - Zpred)
-                S += self.weights_cov[i + 1] * np.outer(Zsig_prop[:, i + 1 + self.N] - Zpred, Zsig_prop[:, i + 1 + self.N] - Zpred)
-
+        elif self.sensorIdx == 2:
+            S = self.R[1,1].copy()
 
         else:
+            raise ValueError("Invalid sensorIdx value")
 
-            S += self.weights_cov[0] * np.outer(Zsig_prop - Zpred, Zsig_prop - Zpred)
+    
 
-            for i in range(self.N):
-                S += self.weights_cov[i + 1] * np.outer(Zsig_prop[i + 1] - Zpred, Zsig_prop[i + 1] - Zpred)
-                S += self.weights_cov[i + 1] * np.outer(Zsig_prop[i + 1 + self.N] - Zpred, Zsig_prop[i + 1 + self.N] - Zpred)
+        S += self.weights_cov[0] * np.outer(Zsig_prop[:, (0,)] - Zpred, Zsig_prop[:, (0,)] - Zpred)
+
+        for i in range(self.N):
+            idx1 = i + 1
+            idx2 = idx1 + self.N
+            S += self.weights_cov[i + 1] * np.outer(Zsig_prop[:, (idx1,)] - Zpred, Zsig_prop[:, (idx1,)] - Zpred)
+            S += self.weights_cov[i + 1] * np.outer(Zsig_prop[:, (idx2,)] - Zpred, Zsig_prop[:, (idx2,)] - Zpred)
 
         return S
 
 
     def _crossCorrelation(self, Xsig_prop, Xpred, Zsig_prop, Zpred) -> np.ndarray:
-        T = self.weights_cov[0] * np.outer(Xsig_prop[:, 0] - Xpred, Zsig_prop[:, 0] - Zpred)
+
+        T = self.weights_cov[0] * np.outer(Xsig_prop[:, (0,)] - Xpred, Zsig_prop[:, (0,)] - Zpred)
 
         for i in range(self.N):
-            T += self.weights_cov[i + 1] * np.outer(Xsig_prop[:, i + 1] - Xpred, Zsig_prop[:, i + 1] - Zpred)
-            T += self.weights_cov[i + 1] * np.outer(Xsig_prop[:, i + 1 + self.N] - Xpred, Zsig_prop[:, i + 1 + self.N] - Zpred)
+            idx1 = i + 1
+            idx2 = idx1 + self.N
+            T += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx1,)] - Xpred, Zsig_prop[:, (idx1,)] - Zpred)
+            T += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx2,)] - Xpred, Zsig_prop[:, (idx2,)] - Zpred)
 
         return T
 
 
     def _constructSigmaPointsInMeasurementSpace(self, Xsig_prop) -> np.ndarray:
-        if self.sensor == 1:
-            Zsig_prop = Xsig_prop[0, :].copy()
-
-        elif self.sensor == 2:
-            Zsig_prop = Xsig_prop[2, :].copy()
-
-        else:
-            Zsig_prop = np.zeros((2, (2 * self.N + 1)))
-
-            Zsig_prop[0, :] = Xsig_prop[0, :].copy()
-            Zsig_prop[1, :] = Xsig_prop[2, :].copy()
+            
+        Zsig_prop = Xsig_prop[self.measStateIdx, :].copy()
 
         return Zsig_prop
 
 
     def _predictionInMeasurementSpace(self, Zsig_prop) -> np.ndarray:
 
-        if self.sensor != 0:
-            
-            Zpred = self.weights_mean[0] * Zsig_prop[0]
+        Zpred = self.weights_mean[0] * Zsig_prop[:, (0,)]
 
-            for i in range(self.N):
-                Zpred += self.weights_mean[i + 1] * Zsig_prop[i + 1]
-                Zpred += self.weights_mean[i + 1] * Zsig_prop[i + 1 + self.N]
-
-        else:
-            Zpred = self.weights_mean[0] * Zsig_prop[:, 0]
-
-            for i in range(self.N):
-                Zpred += self.weights_mean[i + 1] * Zsig_prop[:, i + 1]
-                Zpred += self.weights_mean[i + 1] * Zsig_prop[:, i + 1 + self.N]
+        for i in range(self.N):
+            Zpred[:,0] += self.weights_mean[i + 1] * Zsig_prop[:, i + 1]
+            Zpred[:,0] += self.weights_mean[i + 1] * Zsig_prop[:, i + 1 + self.N]
 
         return Zpred
 
@@ -178,7 +168,9 @@ class UnscentedKalmanFilter:
         return Xpred, Ppred, Xsig_prop
 
 
-    def _update(self, t, Y) -> None:
+    def update(self, t, Y, sensorIdx) -> None:
+
+        self._determineMeasurementIndexing(sensorIdx)
 
         Xpred, Ppred, Xsig_prop = self.predict(t)
 
@@ -189,8 +181,8 @@ class UnscentedKalmanFilter:
 
         S = self._predictedMeasurementCovariance(Zsig_prop, Zpred)
         T = self._crossCorrelation(Xsig_prop, Xpred, Zsig_prop, Zpred)
-        K = T @ np.linalg.inv(S)
 
+        K = T @ np.linalg.inv(S)
 
         self.X = Xpred + K @ dY
         
@@ -199,27 +191,29 @@ class UnscentedKalmanFilter:
         self.timeUpdated = t
 
 
-    def newData(self, z, t, sensor = 0) -> None:
-        self.sensor = sensor
+    def newData(self, z, t, sensorIdx) -> None:
 
-        self._update(t, z)
+        self.update(t, z, sensorIdx)
 
 
+        ########## Update the history ##########
         self.timeHist.append(t)
-        self.theta1Hist.append(self.X[0])
-        self.theta2Hist.append(self.X[2])
+        self.theta1Hist.append(self.X[0,0])
+        self.theta2Hist.append(self.X[2,0])
     
 
-    def _wrapAngle(self, angle) -> np.float64:
+    def _determineMeasurementIndexing(self, sensorIdx) -> None:
 
-        ratio = np.round(angle / (2.0 * np.pi))
+        self.sensorIdx = sensorIdx
 
-        angle -= 2.0 * np.pi * ratio
+        if sensorIdx == 1:
+            self.measStateIdx = (0,)
 
-        if angle >= np.pi:
-            angle -= 2.0 * np.pi
+        elif sensorIdx == 2:
+            self.measStateIdx = (2,)
 
-        elif angle < -np.pi:
-            angle += 2.0 * np.pi
+        elif sensorIdx == 0:
+            self.measStateIdx = (0, 2)
 
-        return angle
+        else:
+            raise ValueError("Invalid sensorIdx value")
