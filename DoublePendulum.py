@@ -56,15 +56,13 @@ def wrapZeroToTwoPi(angle):
 
 
 class DoublePendulum:
-    def __init__(self, inp_length1, inp_mass1, inp_length2, inp_mass2, inp_x1_0 = 0, inp_x1dot_0 = 0, inp_x2_0 = 0, inp_x2dot_0 = 0, inp_Mfric1 = 0, inp_Mfric2 = 0, inp_g = 9.81):
+    def __init__(self, inp_length1, inp_mass1, inp_length2, inp_mass2, inp_x1_0 = 0, inp_x1dot_0 = 0, inp_x2_0 = 0, inp_x2dot_0 = 0, inp_g = 9.81):
 
         # System Parameters
         self.length1 = inp_length1
         self.length2 = inp_length2
         self.mass1   = inp_mass1
         self.mass2   = inp_mass2
-        self.Mfric1  = inp_Mfric1
-        self.Mfric2  = inp_Mfric2
         self.g       = inp_g
 
         # Time
@@ -74,7 +72,9 @@ class DoublePendulum:
         self.X = np.array([inp_x1_0, inp_x1dot_0, inp_x2_0, inp_x2dot_0])
         self.X_history = list(self.X)
         self.theta1_history = [self.X[0]]
+        self.theta1dot_history = [self.X[1]]
         self.theta2_history = [self.X[2]]
+        self.theta2dot_history = [self.X[3]]
     
 
     def _RungeKutta4thOrder(self, dt) -> None:
@@ -123,6 +123,8 @@ class DoublePendulum:
 
             self.X_history.append(self.X)
             self.theta1_history.append(self.X[0])
+            self.theta1dot_history.append(self.X[1])
             self.theta2_history.append(self.X[2])
+            self.theta2dot_history.append(self.X[3])
             
             self.t.append(t)

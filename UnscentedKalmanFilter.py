@@ -4,7 +4,7 @@ import numpy as np
 import DoublePendulum as dp
 
 class UnscentedKalmanFilter:
-    def __init__(self, m1, m2, l1, l2, P, X, R, Q, g = 9.81, alpha = 1e-3, beta = 2, kappa = 0):
+    def __init__(self, m1, m2, l1, l2, P0, X0, R, Q, g = 9.81, alpha = 1e-3, beta = 2, kappa = 0):
         self.m1 = m1
         self.m2 = m2
         self.l1 = l1
@@ -12,10 +12,10 @@ class UnscentedKalmanFilter:
 
         self.timeUpdated = 0.0
 
-        self.Q = Q.copy()
+        self.Q = Q
         self.R = R.copy()
-        self.P = P.copy()
-        self.X = X.copy()
+        self.P = P0.copy()
+        self.X = X0.copy()
         self.N = len(self.X)
         self.g = g
         self.lmbda = alpha**2 * (self.N + kappa) - self.N
@@ -33,32 +33,25 @@ class UnscentedKalmanFilter:
         self.sensorIdx = 0
         self.measStateIdx = (0,2)
 
-        self.timeHist   = [0.0]
-        self.theta1Hist = [self.X[0,0].copy()]
-        self.theta2Hist = [self.X[2,0].copy()]
-
 
     def _constructSigmaPoints(self):
 
         Xsig = np.zeros((self.N, 2 * self.N + 1))
 
-        scaledP = np.linalg.cholesky((self.lmbda + self.N) * self.P)
+        sqrtP = np.linalg.cholesky(self.P)
+
+        scaleFactor = np.sqrt(self.lmbda + self.N)
 
         Xsig[:,(0,)] = self.X.copy()
 
         for i in range(self.N):
             idx1 = i + 1
             idx2 = idx1 + self.N
-            Xsig[:,(idx1,)] = self.X + scaledP[:,(i,)]
-            Xsig[:,(idx2,)] = self.X - scaledP[:,(i,)]
+            Xsig[:,(idx1,)] = self.X + scaleFactor * sqrtP[:,(i,)]
+            Xsig[:,(idx2,)] = self.X - scaleFactor * sqrtP[:,(i,)]
 
 
         return Xsig
-
-
-    def _propagateSigmaPoints(self, Xsig, dt):
-        
-        return np.transpose(np.array([self._nonlinearFunction(Xsig[:,i], dt) for i in range(2 * self.N + 1)]))
 
 
     def _nonlinearFunction(self, stateVec, dt):
@@ -85,8 +78,8 @@ class UnscentedKalmanFilter:
         return Xpred
 
 
-    def _predictCovariance(self, Xsig_prop, Xpred):
-        Ppred = self.Q.copy()
+    def _predictCovariance(self, Xsig_prop, Xpred, dt):
+        Ppred = self.Q(dt)
 
         Ppred += self.weights_cov[0] * np.outer(Xsig_prop[:, (0,)] - Xpred, Xsig_prop[:, (0,)] - Xpred)
 
@@ -140,30 +133,29 @@ class UnscentedKalmanFilter:
         return T
 
 
-    def _constructSigmaPointsInMeasurementSpace(self, Xsig_prop):
-            
-        Zsig_prop = Xsig_prop[self.measStateIdx, :].copy()
-
-        return Zsig_prop
-
-
     def _predictionInMeasurementSpace(self, Zsig_prop):
 
         Zpred = self.weights_mean[0] * Zsig_prop[:, (0,)]
 
         for i in range(self.N):
-            Zpred[:,0] += self.weights_mean[i + 1] * Zsig_prop[:, i + 1]
-            Zpred[:,0] += self.weights_mean[i + 1] * Zsig_prop[:, i + 1 + self.N]
+            idx1 = i + 1
+            idx2 = idx1 + self.N
+            Zpred += self.weights_mean[idx1] * Zsig_prop[:, (idx1,)]
+            Zpred += self.weights_mean[idx1] * Zsig_prop[:, (idx2,)]
 
         return Zpred
 
 
     def predict(self, t):
 
+        dt = t - self.timeUpdated
+
         Xsig = self._constructSigmaPoints()
-        Xsig_prop = self._propagateSigmaPoints(Xsig, t - self.timeUpdated)
+
+        Xsig_prop = np.transpose(np.array([self._nonlinearFunction(Xsig[:,i], dt) for i in range(2 * self.N + 1)]))
+
         Xpred = self._predictMean(Xsig_prop)
-        Ppred = self._predictCovariance(Xsig_prop, Xpred)
+        Ppred = self._predictCovariance(Xsig_prop, Xpred, dt)
 
         return Xpred, Ppred, Xsig_prop
 
@@ -174,7 +166,7 @@ class UnscentedKalmanFilter:
 
         Xpred, Ppred, Xsig_prop = self.predict(t)
 
-        Zsig_prop = self._constructSigmaPointsInMeasurementSpace(Xsig_prop)
+        Zsig_prop = Xsig_prop[self.measStateIdx, :].copy()
         Zpred = self._predictionInMeasurementSpace(Zsig_prop)
 
         dY = Y - Zpred
@@ -190,16 +182,7 @@ class UnscentedKalmanFilter:
 
         self.timeUpdated = t
 
-
-    def newData(self, z, t, sensorIdx):
-
-        self.update(t, z, sensorIdx)
-
-
-        ########## Update the history ##########
-        self.timeHist.append(t)
-        self.theta1Hist.append(self.X[0,0])
-        self.theta2Hist.append(self.X[2,0])
+        return self.X.copy()
     
 
     def _determineMeasurementIndexing(self, sensorIdx):

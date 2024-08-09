@@ -3,23 +3,19 @@ import numpy as np
 import DoublePendulum as dp
 
 class ExtendedKalmanFilter:
-    def __init__(self, m1, m2, L1, L2, P, X, R, Q, g = 9.81):
+    def __init__(self, m1, m2, L1, L2, P0, X0, R, Q, g = 9.81):
         self.m1 = m1
         self.m2 = m2
         self.L1 = L1
         self.L2 = L2
 
-        self.Q = Q.copy()
+        self.Q = Q
         self.R = R.copy()
-        self.P = P.copy()
-        self.X = X.copy()
+        self.P = P0.copy()
+        self.X = X0.copy()
 
         self.timeUpdated = 0.0
         self.g = g
-
-        self.timeHist   = [0.0]
-        self.theta1Hist = [self.X[0,0].copy()]
-        self.theta2Hist = [self.X[2,0].copy()]
 
 
     def _f11(self, dt):
@@ -207,11 +203,11 @@ class ExtendedKalmanFilter:
     def _constructH(self, sensorIdx):
         if sensorIdx == 1:
             H = np.array([[1.0, 0.0, 0.0, 0.0]])
-            R = self.R[0][0]
+            R = self.R[0,0]
 
         elif sensorIdx == 2:
             H = np.array([[0.0, 0.0, 1.0, 0.0]])
-            R = self.R[1][1]
+            R = self.R[1,1]
         else:
             H = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0 , 0.0]])
             R = self.R
@@ -225,12 +221,12 @@ class ExtendedKalmanFilter:
 
         F = self._constructF(dt)
 
-        Ppred = F @ self.P @ np.transpose(F) + self.Q
+        Ppred = F @ self.P @ np.transpose(F) + self.Q(dt)
 
         return Xpred, Ppred
 
 
-    def update(self, Z, t, sensorIdx):
+    def update(self, t, Z, sensorIdx):
 
         Xpred, Ppred = self.predict(t)
 
@@ -246,11 +242,4 @@ class ExtendedKalmanFilter:
 
         self.timeUpdated = t
 
-
-    def newData(self, Z, t, sensorIdx):
-
-        self.update(Z, t, sensorIdx)
-
-        self.timeHist.append(t)
-        self.theta1Hist.append(self.X[0,0])
-        self.theta2Hist.append(self.X[2,0])
+        return self.X.copy()
