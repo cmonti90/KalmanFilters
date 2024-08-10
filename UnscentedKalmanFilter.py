@@ -37,18 +37,18 @@ class UnscentedKalmanFilter:
     def _constructSigmaPoints(self):
 
         Xsig = np.zeros((self.N, 2 * self.N + 1))
-
-        sqrtP = np.linalg.cholesky(self.P)
-
+        
         scaleFactor = np.sqrt(self.lmbda + self.N)
+
+        sqrtScaledP = scaleFactor * np.linalg.cholesky(self.P)
 
         Xsig[:,(0,)] = self.X.copy()
 
         for i in range(self.N):
             idx1 = i + 1
             idx2 = idx1 + self.N
-            Xsig[:,(idx1,)] = self.X + scaleFactor * sqrtP[:,(i,)]
-            Xsig[:,(idx2,)] = self.X - scaleFactor * sqrtP[:,(i,)]
+            Xsig[:,(idx1,)] = self.X + sqrtScaledP[:,(i,)]
+            Xsig[:,(idx2,)] = self.X - sqrtScaledP[:,(i,)]
 
 
         return Xsig
@@ -72,8 +72,7 @@ class UnscentedKalmanFilter:
         for i in range(self.N):
             idx1 = i + 1
             idx2 = idx1 + self.N
-            Xpred += self.weights_mean[idx1] * Xsig_prop[:, (idx1,)]
-            Xpred += self.weights_mean[idx1] * Xsig_prop[:, (idx2,)]
+            Xpred += self.weights_mean[idx1] * ( Xsig_prop[:, (idx1,)] + Xsig_prop[:, (idx2,)] )
 
         return Xpred
 
@@ -178,7 +177,7 @@ class UnscentedKalmanFilter:
 
         self.X = Xpred + K @ dY
         
-        self.P = Ppred - K @ S @ np.transpose(K)
+        self.P = Ppred - K @ S @ K.T
 
         self.timeUpdated = t
 
