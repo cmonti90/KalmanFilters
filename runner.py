@@ -1,12 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 import DoublePendulum as dp
 import ExtendedKalmanFilter as ekf
 import UnscentedKalmanFilter as ukf
 
+
 showPlots = 1
 
-montecarl0 = 0
+makeMovie = 1
+movie_fps = 100
+
+montecarlo = 0
 
 np.random.seed(0)
 
@@ -26,17 +31,20 @@ l1_sigma = 0.05
 l2_sigma = 0.03
 
 # Initial double pendulum states
-theta1_0    = 10.0 * np.pi / 180.0
+theta1_0    = 60.0 * np.pi / 180.0
 theta1dot_0 = 0.0 * np.pi / 180.0
 theta2_0    = -30.0 * np.pi / 180.0
 theta2dot_0 = 0.0 * np.pi / 180.0
 
 # Time
 duration = 20
-dt_model = 0.0001
+f_model = 10000
+dt_model = 1 / f_model
 
 dt_ratio = 10
 
+dt_filter = dt_model * dt_ratio
+f_filter = f_model / dt_ratio
 
 # Filters
 useEkf = 1
@@ -51,10 +59,10 @@ sensor = 0
 
 
 # Double pendulum true parameters
-m1_true = m1 + montecarl0 * np.random.normal(0.0, m1_sigma)
-m2_true = m2 + montecarl0 * np.random.normal(0.0, m2_sigma)
-l1_true = l1 + montecarl0 * np.random.normal(0.0, l1_sigma)
-l2_true = l2 + montecarl0 * np.random.normal(0.0, l2_sigma)
+m1_true = m1 + montecarlo * np.random.normal(0.0, m1_sigma)
+m2_true = m2 + montecarlo * np.random.normal(0.0, m2_sigma)
+l1_true = l1 + montecarlo * np.random.normal(0.0, l1_sigma)
+l2_true = l2 + montecarlo * np.random.normal(0.0, l2_sigma)
 
 # Instantiate object
 dubPen = dp.DoublePendulum(l1_true, m1_true, l2_true, m2_true, theta1_0, theta1dot_0, theta2_0, theta2dot_0, g)
@@ -86,10 +94,8 @@ ekf_var_theta1dotdot = (22 * np.pi / 180)**2
 ekf_var_theta2dotdot = (22 * np.pi / 180)**2
 ekf_cov_theta1dotdot_theta2dotdot = 0
 
-# ukf_var_theta1dotdot = (45 * np.pi / 180)**2
-# ukf_var_theta2dotdot = (500 * np.pi / 180)**2
-ukf_var_theta1dotdot = (22 * np.pi / 180)**2
-ukf_var_theta2dotdot = (22 * np.pi / 180)**2
+ukf_var_theta1dotdot = (30 * np.pi / 180)**2
+ukf_var_theta2dotdot = (40 * np.pi / 180)**2
 ukf_cov_theta1dotdot_theta2dotdot = 0
 
 def chooseQ( inp_var_theta1dotdot, inp_var_theta2dotdot, inp_cov_theta1dotdot_theta2dotdot ):
@@ -146,6 +152,11 @@ UKF = ukf.UnscentedKalmanFilter(m1, m2, l1, l2, P0, X0, R, Qukf, g, alpha = 1e-3
 
 timehist = [dubPen.t[0]]
 
+true_theta1    = [theta1_0 * 180.0 / np.pi]
+true_theta1dot = [theta1dot_0 * 180.0 / np.pi]
+true_theta2    = [theta2_0 * 180.0 / np.pi]
+true_theta2dot = [theta2dot_0 * 180.0 / np.pi]
+
 ekf_theta1    = [theta1_0 * 180.0 / np.pi]
 ekf_theta1dot = [theta1dot_0 * 180.0 / np.pi]
 ekf_theta2    = [theta2_0 * 180.0 / np.pi]
@@ -185,14 +196,19 @@ for i in range(dt_ratio, len(dubPen.t), dt_ratio):
     t = dubPen.t[i]
     timehist.append(t)
 
+    true_theta1   .append(dubPen.theta1_history[i] * 180.0 / np.pi)
+    true_theta1dot.append(dubPen.theta1dot_history[i] * 180.0 / np.pi)
+    true_theta2   .append(dubPen.theta2_history[i] * 180.0 / np.pi)
+    true_theta2dot.append(dubPen.theta2dot_history[i] * 180.0 / np.pi)
+
 
     # Define the measurement vector
     if useTruth:
         Z = np.array([[dubPen.theta1_history[i]], [dubPen.theta2_history[i]]])
 
     else:
-        theta1_meas = dubPen.theta1_history[i] + np.random.normal(0.0, sensorNoise1Sigma)
-        theta2_meas = dubPen.theta2_history[i] + np.random.normal(0.0, sensorNoise1Sigma)
+        theta1_meas = dp.wrapNegPiToPi(dubPen.theta1_history[i] + np.random.normal(0.0, sensorNoise1Sigma))
+        theta2_meas = dp.wrapNegPiToPi(dubPen.theta2_history[i] + np.random.normal(0.0, sensorNoise1Sigma))
         Z = np.array([[theta1_meas], [theta2_meas]])
 
 
@@ -234,9 +250,9 @@ for i in range(dt_ratio, len(dubPen.t), dt_ratio):
             ekf_theta2   .append(stateVec_ekf[2,0] * 180.0 / np.pi)
             ekf_theta2dot.append(stateVec_ekf[3,0] * 180.0 / np.pi)
 
-            ekf_error_theta1   .append((stateVec_ekf[0,0] - dubPen.theta1_history   [i]) * 180.0 / np.pi )
+            ekf_error_theta1   .append(dp.findMinAngleDifference(stateVec_ekf[0,0], dubPen.theta1_history[i]) * 180.0 / np.pi )
             ekf_error_theta1dot.append((stateVec_ekf[1,0] - dubPen.theta1dot_history[i]) * 180.0 / np.pi )
-            ekf_error_theta2   .append((stateVec_ekf[2,0] - dubPen.theta2_history   [i]) * 180.0 / np.pi )
+            ekf_error_theta2   .append(dp.findMinAngleDifference(stateVec_ekf[2,0], dubPen.theta2_history[i]) * 180.0 / np.pi )
             ekf_error_theta2dot.append((stateVec_ekf[3,0] - dubPen.theta2dot_history[i]) * 180.0 / np.pi )
 
             ekf_P.append(EKF.P)
@@ -253,9 +269,9 @@ for i in range(dt_ratio, len(dubPen.t), dt_ratio):
             ukf_theta2   .append(stateVec_ukf[2,0] * 180.0 / np.pi)
             ukf_theta2dot.append(stateVec_ukf[3,0] * 180.0 / np.pi)
 
-            ukf_error_theta1   .append((stateVec_ukf[0,0] - dubPen.theta1_history   [i]) * 180.0 / np.pi )
+            ukf_error_theta1   .append(dp.findMinAngleDifference(stateVec_ukf[0,0], dubPen.theta1_history[i]) * 180.0 / np.pi )
             ukf_error_theta1dot.append((stateVec_ukf[1,0] - dubPen.theta1dot_history[i]) * 180.0 / np.pi )
-            ukf_error_theta2   .append((stateVec_ukf[2,0] - dubPen.theta2_history   [i]) * 180.0 / np.pi )
+            ukf_error_theta2   .append(dp.findMinAngleDifference(stateVec_ukf[2,0], dubPen.theta2_history[i]) * 180.0 / np.pi )
             ukf_error_theta2dot.append((stateVec_ukf[3,0] - dubPen.theta2dot_history[i]) * 180.0 / np.pi )
 
             ukf_P.append(UKF.P)
@@ -274,9 +290,9 @@ for i in range(dt_ratio, len(dubPen.t), dt_ratio):
             ekf_theta2   .append(stateVec_ekf[2,0] * 180.0 / np.pi)
             ekf_theta2dot.append(stateVec_ekf[3,0] * 180.0 / np.pi)
 
-            ekf_error_theta1   .append((stateVec_ekf[0,0] - dubPen.theta1_history   [i]) * 180.0 / np.pi )
+            ekf_error_theta1   .append(dp.findMinAngleDifference(stateVec_ekf[0,0], dubPen.theta1_history[i]) * 180.0 / np.pi )
             ekf_error_theta1dot.append((stateVec_ekf[1,0] - dubPen.theta1dot_history[i]) * 180.0 / np.pi )
-            ekf_error_theta2   .append((stateVec_ekf[2,0] - dubPen.theta2_history   [i]) * 180.0 / np.pi )
+            ekf_error_theta2   .append(dp.findMinAngleDifference(stateVec_ekf[2,0], dubPen.theta2_history[i]) * 180.0 / np.pi )
             ekf_error_theta2dot.append((stateVec_ekf[3,0] - dubPen.theta2dot_history[i]) * 180.0 / np.pi )
 
             ekf_Ppred.append(Ppred_ekf)
@@ -292,9 +308,9 @@ for i in range(dt_ratio, len(dubPen.t), dt_ratio):
             ukf_theta2   .append(stateVec_ukf[2,0] * 180.0 / np.pi)
             ukf_theta2dot.append(stateVec_ukf[3,0] * 180.0 / np.pi)
 
-            ukf_error_theta1   .append((stateVec_ukf[0,0] - dubPen.theta1_history   [i]) * 180.0 / np.pi )
+            ukf_error_theta1   .append(dp.findMinAngleDifference(stateVec_ukf[0,0], dubPen.theta1_history[i]) * 180.0 / np.pi )
             ukf_error_theta1dot.append((stateVec_ukf[1,0] - dubPen.theta1dot_history[i]) * 180.0 / np.pi )
-            ukf_error_theta2   .append((stateVec_ukf[2,0] - dubPen.theta2_history   [i]) * 180.0 / np.pi )
+            ukf_error_theta2   .append(dp.findMinAngleDifference(stateVec_ukf[2,0], dubPen.theta2_history[i]) * 180.0 / np.pi )
             ukf_error_theta2dot.append((stateVec_ukf[3,0] - dubPen.theta2dot_history[i]) * 180.0 / np.pi )
 
             ukf_Ppred.append(Ppred_ukf)
@@ -454,10 +470,66 @@ if showPlots:
 
     axs[0, 3].legend( loc = "upper right", bbox_to_anchor = (1.5, 1.0) )
 
-    # fig.canvas.manager.window.showMaximized()
-
     fig.tight_layout()
 
 
 
-    plt.show()
+## make movie
+
+if makeMovie:
+    def init():
+        line_truth.set_data([], [])
+        line_ekf.set_data([], [])
+        line_ukf.set_data([], [])
+        text_time.set_text('')
+        return line_truth,line_ekf,line_ukf,text_time
+
+
+    def update(frame):
+
+        idx = frame * int(f_filter // movie_fps)
+
+        x1, y1, x2, y2 = dp.convertThetasToPos(true_theta1[idx] * np.pi/180, true_theta2[idx] * np.pi/180, l1_true, l2_true)
+        line_truth.set_data([0, x1, x2], [0, y1, y2])
+
+        x1, y1, x2, y2 = dp.convertThetasToPos(ekf_theta1[idx] * np.pi/180, ekf_theta2[idx] * np.pi/180, l1, l2)
+        line_ekf.set_data([0, x1, x2], [0, y1, y2])
+
+        x1, y1, x2, y2 = dp.convertThetasToPos(ukf_theta1[idx] * np.pi/180, ukf_theta2[idx] * np.pi/180, l1, l2)
+        line_ukf.set_data([0, x1, x2], [0, y1, y2])
+
+        text_time.set_text('Time = {:.2f} sec'.format(timehist[idx]))
+
+        return line_truth,line_ekf,line_ukf,text_time
+
+
+    pendSize = np.max([l1 + l2, l1_true + l2_true])
+    axBounds = 1.2 * pendSize
+
+    fig, ax = plt.subplots()
+    ax.set_xlim(-axBounds, axBounds)
+    ax.set_ylim(-axBounds, axBounds)
+
+    line_truth, = ax.plot([], [], marker = 'o', color = 'b', ls = '-', lw=4, markersize=7, alpha = 0.75, label = "Truth", zorder=0)
+    line_ekf, = ax.plot([], [], marker = 'o', color = 'r', ls = '--', lw=3, markersize=7, alpha = 0.75, label = "EKF", zorder=1)
+    line_ukf, = ax.plot([], [], marker = 'o', color='g', lw=3, ls='--', markersize=7, alpha=0.75, label="UKF", zorder=1)
+    text_time = ax.text(0.05, 0.9, '', transform=ax.transAxes, fontsize = 12, ha='left')
+
+    ax.set_xticks([0])
+    ax.set_yticks([0])
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+
+    ax.grid()
+    ax.legend(loc = "upper right")
+    fig.tight_layout()
+
+    ani = FuncAnimation(fig, update, frames=range(int(duration * movie_fps)), init_func=init, blit=True)
+
+    ani.save('double_pendulum.mp4', fps=movie_fps, writer='ffmpeg')
+
+    # plt.close(fig)
+
+
+
+plt.show()

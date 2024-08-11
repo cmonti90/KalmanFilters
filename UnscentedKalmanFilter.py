@@ -50,6 +50,8 @@ class UnscentedKalmanFilter:
             Xsig[:,(idx1,)] = self.X + sqrtScaledP[:,(i,)]
             Xsig[:,(idx2,)] = self.X - sqrtScaledP[:,(i,)]
 
+            # Xsig[(0,2),(idx1,idx2)] = dp.wrapNegPiToPi(Xsig[(0,2),(idx1,idx2)])
+
 
         return Xsig
 
@@ -61,6 +63,9 @@ class UnscentedKalmanFilter:
         theta1dot   = stateVec[1] + dt * theta1dotdot
         theta2      = stateVec[2] + dt * stateVec[3] + 0.5 * (dt ** 2) * theta2dotdot
         theta2dot   = stateVec[3] + dt * theta2dotdot
+
+        theta1 = dp.wrapNegPiToPi(theta1)
+        theta2 = dp.wrapNegPiToPi(theta2)
 
         return np.array([theta1, theta1dot, theta2, theta2dot])
 
@@ -74,19 +79,28 @@ class UnscentedKalmanFilter:
             idx2 = idx1 + self.N
             Xpred += self.weights_mean[idx1] * ( Xsig_prop[:, (idx1,)] + Xsig_prop[:, (idx2,)] )
 
+        Xpred[(0,2),] = dp.wrapNegPiToPi(Xpred[(0,2),])
+
         return Xpred
 
 
     def _predictCovariance(self, Xsig_prop, Xpred, dt):
         Ppred = self.Q(dt)
 
-        Ppred += self.weights_cov[0] * np.outer(Xsig_prop[:, (0,)] - Xpred, Xsig_prop[:, (0,)] - Xpred)
+        Xsig_prop_wrap = Xsig_prop.copy()
+        Xsig_prop_wrap[(0,2),:] = dp.wrapNegPiToPi(Xsig_prop_wrap[(0,2),:])
+
+        dX = Xsig_prop_wrap - Xpred
+        dX[(0,2),:] = dp.findMinAngleDifference( Xsig_prop_wrap[(0,2),:], Xpred[(0,2),] )
+
+        Ppred += self.weights_cov[0] * np.outer(dX[:, (0,)], dX[:, (0,)])
 
         for i in range(self.N):
             idx1 = i + 1
             idx2 = idx1 + self.N
-            Ppred += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx1,)] - Xpred, Xsig_prop[:, (idx1,)] - Xpred)
-            Ppred += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx2,)] - Xpred, Xsig_prop[:, (idx2,)] - Xpred)
+
+            Ppred += self.weights_cov[idx1] * np.outer(dX[:, (idx1,)], dX[:, (idx1,)])
+            Ppred += self.weights_cov[idx1] * np.outer(dX[:, (idx2,)], dX[:, (idx2,)])
 
 
         return Ppred
@@ -106,28 +120,37 @@ class UnscentedKalmanFilter:
         else:
             raise ValueError("Invalid sensorIdx value")
 
-    
 
-        S += self.weights_cov[0] * np.outer(Zsig_prop[:, (0,)] - Zpred, Zsig_prop[:, (0,)] - Zpred)
+        dZ = dp.findMinAngleDifference( Zsig_prop, Zpred )
+    
+        S += self.weights_cov[0] * np.outer(dZ[:, (0,)], dZ[:, (0,)])
 
         for i in range(self.N):
             idx1 = i + 1
             idx2 = idx1 + self.N
-            S += self.weights_cov[i + 1] * np.outer(Zsig_prop[:, (idx1,)] - Zpred, Zsig_prop[:, (idx1,)] - Zpred)
-            S += self.weights_cov[i + 1] * np.outer(Zsig_prop[:, (idx2,)] - Zpred, Zsig_prop[:, (idx2,)] - Zpred)
+            S += self.weights_cov[i + 1] * np.outer(dZ[:, (idx1,)], dZ[:, (idx1,)])
+            S += self.weights_cov[i + 1] * np.outer(dZ[:, (idx2,)], dZ[:, (idx2,)])
 
         return S
 
 
     def _crossCorrelation(self, Xsig_prop, Xpred, Zsig_prop, Zpred):
 
-        T = self.weights_cov[0] * np.outer(Xsig_prop[:, (0,)] - Xpred, Zsig_prop[:, (0,)] - Zpred)
+        Xsig_prop_wrap = Xsig_prop.copy()
+        Xsig_prop_wrap[(0,2),:] = dp.wrapNegPiToPi(Xsig_prop_wrap[(0,2),:])
+
+        dX = Xsig_prop_wrap - Xpred
+        dX[(0,2),:] = dp.findMinAngleDifference( Xsig_prop_wrap[(0,2),:], Xpred[(0,2),] )
+
+        dZ = dp.findMinAngleDifference( Zsig_prop, Zpred )
+
+        T = self.weights_cov[0] * np.outer(dX[:, (0,)], dZ[:, (0,)])
 
         for i in range(self.N):
             idx1 = i + 1
             idx2 = idx1 + self.N
-            T += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx1,)] - Xpred, Zsig_prop[:, (idx1,)] - Zpred)
-            T += self.weights_cov[idx1] * np.outer(Xsig_prop[:, (idx2,)] - Xpred, Zsig_prop[:, (idx2,)] - Zpred)
+            T += self.weights_cov[idx1] * np.outer(dX[:, (idx1,)], dZ[:, (idx1,)])
+            T += self.weights_cov[idx1] * np.outer(dX[:, (idx2,)], dZ[:, (idx2,)])
 
         return T
 
@@ -141,6 +164,9 @@ class UnscentedKalmanFilter:
             idx2 = idx1 + self.N
             Zpred += self.weights_mean[idx1] * Zsig_prop[:, (idx1,)]
             Zpred += self.weights_mean[idx1] * Zsig_prop[:, (idx2,)]
+
+        Zpred = dp.wrapNegPiToPi(Zpred)
+
 
         return Zpred
 
@@ -168,7 +194,7 @@ class UnscentedKalmanFilter:
         Zsig_prop = Xsig_prop[self.measStateIdx, :].copy()
         Zpred = self._predictionInMeasurementSpace(Zsig_prop)
 
-        dY = Y - Zpred
+        dY = dp.findMinAngleDifference(Y, Zpred)
 
         S = self._predictedMeasurementCovariance(Zsig_prop, Zpred)
         T = self._crossCorrelation(Xsig_prop, Xpred, Zsig_prop, Zpred)
@@ -176,6 +202,9 @@ class UnscentedKalmanFilter:
         K = T @ np.linalg.inv(S)
 
         self.X = Xpred + K @ dY
+
+        self.X[0] = dp.wrapNegPiToPi(self.X[0])
+        self.X[2] = dp.wrapNegPiToPi(self.X[2])
         
         self.P = Ppred - K @ S @ K.T
 

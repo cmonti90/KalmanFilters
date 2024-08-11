@@ -2,4 +2,5 @@ build/*
 .vscode/*
 *.code-workspace
 *.orig
+*.mp4
 __pycache__/

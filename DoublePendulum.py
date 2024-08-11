@@ -3,56 +3,95 @@
 import numpy as np
 
 
-def thetadotdot(mass1, length1, mass2, length2, x1, x1dot, x2, x2dot, g = 9.81 ):
+'''
+The double pendulum is modeled with theta1 and theta2 as the angles of the first and second pendulum respectively.
+theta1 is measured from the verticle axis with the positive direction being counter-clockwise and zero at the verticle axis pointing downwards.
+theta2 is measured from theta1 with the positive direction being counter-clockwise and zero when the second pendulum is aligned with the first pendulum.
+
+This implies that x is pointing downwards and y is pointing to the right.
+'''
+
+
+def thetadotdot(mass1, length1, mass2, length2, theta1, theta1dot, theta2, theta2dot, g = 9.81 ):
     
     # Common
-    dTheta = x1 - x2
+    dTheta = theta1 - theta2
     M = mass1 + mass2
     denomFactor = mass1 + mass2 * (np.sin(dTheta) ** 2)
 
 
     # x1dotdot
-    num = -np.sin(dTheta) * ( mass2 * length1 * (x1dot ** 2) * np.cos(dTheta) + mass2 * length2 * (x2dot ** 2) ) - g * ( M * np.sin(x1) - mass2 * np.sin(x2) * np.cos(dTheta) )
+    num = -np.sin(dTheta) * ( mass2 * length1 * (theta1dot ** 2) * np.cos(dTheta) + mass2 * length2 * (theta2dot ** 2) ) - g * ( M * np.sin(theta1) - mass2 * np.sin(theta2) * np.cos(dTheta) )
     denom = length1 * denomFactor
 
-    x1dotdot = num / denom
+    theta1dotdot = num / denom
 
     # x2dotdot
-    num = np.sin(dTheta) * ( M * length1 * (x1dot ** 2) + mass2 * length2 * (x2dot ** 2) * np.cos(dTheta)) + M * g * (np.sin(x1) * np.cos(dTheta) - np.sin(x2) )
+    num = np.sin(dTheta) * ( M * length1 * (theta1dot ** 2) + mass2 * length2 * (theta2dot ** 2) * np.cos(dTheta)) + M * g * (np.sin(theta1) * np.cos(dTheta) - np.sin(theta2) )
     denom = length2 * denomFactor
 
-    x2dotdot = num / denom
+    theta2dotdot = num / denom
 
 
     # Return
-    return x1dotdot, x2dotdot
+    return theta1dotdot, theta2dotdot
 
 
 def wrapNegPiToPi(angle):
-
-    ratio = np.trunc(angle / (2.0 * np.pi))
-
-    angle -= 2.0 * np.pi * ratio
-
-    if angle >= np.pi:
-        angle -= 2.0 * np.pi
-
-    elif angle < -np.pi:
-        angle += 2.0 * np.pi
-
+    
+    if np.isscalar(angle):
+        angle = angle % (2.0 * np.pi)
+        if angle >= np.pi:
+            angle -= 2.0 * np.pi
+        elif angle < -np.pi:
+            angle += 2.0 * np.pi
+    else:
+        # Handle the input as an array
+        angle = np.mod(angle, 2.0 * np.pi)
+        angle = np.where(angle >= np.pi, angle - 2.0 * np.pi, angle)
+        angle = np.where(angle < -np.pi, angle + 2.0 * np.pi, angle)
+    
     return angle
 
 
 def wrapZeroToTwoPi(angle):
+    return angle - 2.0 * np.pi * np.floor(angle / (2.0 * np.pi))
 
-    ratio = np.trunc(angle / (2.0 * np.pi))
 
-    angle -= 2.0 * np.pi * ratio
+    
 
-    if angle < 0:
-        angle += 2.0 * np.pi
+def findMinAngleDifference(angle1, angle2):
 
-    return angle
+    dAng1 = angle1 - angle2
+    dAng2 = dAng1 - 2 * np.pi * np.sign(dAng1)
+
+    if np.isscalar(dAng1):
+        return dAng1 if np.abs(dAng1) < np.abs(dAng2) else dAng2
+    
+    else:
+        return np.where(np.abs(dAng1) < np.abs(dAng2), dAng1, dAng2)
+        
+
+def convertThetasToPos(theta1, theta2, length1, length2):
+    '''
+    x is pointing to the right
+    y is pointing up
+    '''
+
+    x1 = length1 * np.cos(theta1)
+    y1 = length1 * np.sin(theta1)
+
+    x2 = x1 + length2 * np.cos(theta1 + theta2)
+    y2 = y1 + length2 * np.sin(theta1 + theta2)
+
+    x1_rot = y1
+    y1_rot = -x1
+
+    x2_rot = y2
+    y2_rot = -x2
+
+    return x1_rot, y1_rot, x2_rot, y2_rot
+
 
 
 class DoublePendulum:

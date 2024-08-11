@@ -196,6 +196,8 @@ class ExtendedKalmanFilter:
         theta2    = self.X[2,0] + dt * self.X[3,0] + 0.5 * (dt ** 2) * theta2dotdot
         theta2dot = self.X[3,0] + dt * theta2dotdot
 
+        theta1 = dp.wrapNegPiToPi(theta1)
+        theta2 = dp.wrapNegPiToPi(theta2)
 
         return np.array([[theta1], [theta1dot], [theta2], [theta2dot]])
 
@@ -232,11 +234,16 @@ class ExtendedKalmanFilter:
 
         H, R = self._constructH(sensorIdx)
 
-        Y = Z - H @ Xpred
+        Zpred = H @ Xpred
+
+        dY = dp.findMinAngleDifference(Z, Zpred)
+        
         S = H @ Ppred @ H.T + R
         K = Ppred @ H.T @ np.linalg.inv(S)
 
-        self.X = Xpred + K @ Y
+        self.X = Xpred + K @ dY
+
+        self.X[(0,2),0] = dp.wrapNegPiToPi(self.X[(0,2),0])
 
         self.P = (np.identity(4) - K @ H) @ Ppred
 
